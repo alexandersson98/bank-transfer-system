@@ -1,66 +1,78 @@
-Testerna körs mot en lokal postgreSQL för main är det bank_db medans vid testfallen kör jag bank_db_test
-Bägge använder samma användarnamn och lösenord som är postgres och chasacademy.
+# Bank Transfer System (Java, Spring Boot, PostgreSQL)
 
+Backend-system för att hantera banköverföringar mellan konton med fokus på transaktionssäkerhet, tydlig affärslogik och testbarhet.
 
+---
 
-ag har skapat tabellerna `account` och `transaction_log` enligt uppgiften.  
-Databasen sätts upp genom att köra SQL-scriptet från scratch i en tom PostgreSQL-databas,  
-vilket skapar tabeller, constraints och relationer.
+## Funktionalitet
 
-Grunddata för testfallen skapas inte manuellt utan sätts upp i testerna.  
-Inför varje test rensas databasen och nya konton med angivna startsaldon  
-(t.ex. 1000 och 500) läggs in.
+* Överför pengar mellan konton
+* Validerar indata (belopp, konton)
+* Säkerställer att tillräckligt saldo finns
+* Loggar transaktioner som **SUCCESS** eller **FAILED**
+* Rollback vid tekniska fel
 
-Testfallen körs via Maven med kommandot `mvn test`  
-och verifierar både saldoändringar och att rätt rader skapas i `transaction_log`  
-vid lyckade och misslyckade överföringar.
+---
 
+## Arkitektur
 
+* **Repository** – databasåtkomst (Account, TransactionLog)
+* **Service** – affärslogik (Transfer, Logging)
+* Tydlig separation av ansvar enligt lagerindelad struktur
 
+---
 
-Vid valideringsfel, till exempel ett negativt belopp, väljer jag att inte skapa någon rad i transaction_log.
-Detta beror på att jag inte ser det som en faktisk transaktion, utan som ett ogiltigt anrop som stoppas direkt innan någon affärslogik körs eller någon databaspåverkan sker.
-Eftersom inga saldon ändras och ingen överföring påbörjas finns det inget faktiskt affärsförlopp att logga.
-transaction_log används därför endast för verkliga överföringsförsök, både lyckade och misslyckade, men inte för rena indata- eller valideringsfel.
-det samma gäller omm man försöker göra transaction till samma konto.
+## Transaktionshantering
 
+* Huvudtransaktion hanterar saldoändringar
+* Vid fel rullas ändringar tillbaka (rollback)
+* Misslyckade överföringar loggas i separat transaktion
+* Valideringsfel loggas inte (ingen faktisk transaktion påbörjas)
 
+---
 
-Jag valde att använda Maven som byggverktyg eftersom det är mycket vanligt förekommande  
-i Java och Spring-projekt och gör det enkelt att köra tester och bygga projektet  
-på ett standardiserat sätt.
+## Databas
 
-Jag har använt enums för vissa värden för att begränsa tillåtna alternativ  
-och undvika fel som kan uppstå med fria strängar, vilket gör koden säkrare  
-och enklare att validera.
+* PostgreSQL
+* Databaser:
 
-Jag har även valt att använda flera olika exceptions för att felmeddelanden  
-och felhantering ska bli så tydliga som möjligt beroende på vilken typ av fel  
-som uppstår, till exempel valideringsfel, affärsfel eller tekniska fel.
+  * `bank_db` (applikation)
+  * `bank_db_test` (tester)
+* Tabeller:
 
-Koden är uppdelad så att varje klass har ett tydligt ansvar.  
-Repositories hanterar endast databasåtkomst och services innehåller affärslogik.  
-Till exempel finns separata repositories för konton och transaktionsloggar,  
-samt separata serviceklasser för överföringar och loggning.  
-Detta gör koden mer lättläst, lättare att testa och enklare att vidareutveckla.
+  * `account`
+  * `transaction_log`
+* Schema skapas via SQL-script
 
-I transfer-metoden valideras först indata, såsom belopp och att from och to 
-konto  
-inte är samma. Därefter kontrolleras att båda kontona faktiskt finns i databasen,  
-annars kastas ett AccountNotFoundException.
+---
 
-Själva överföringslogiken ligger inuti ett try-block för att kunna fånga upp fel  
-som kan uppstå efter att affärslogiken har påbörjats. Innan några saldon ändras  
-kontrolleras att det finns tillräckligt med medel på kontot, annars kastas ett  
-InsufficientFundsException. Först efter dessa kontroller uppdateras saldon.
+## Tester
 
-En TechnicalFailureException används för att simulera ett tekniskt fel mitt i  
-transaktionen för att verifiera att rollback och loggning fungerar korrekt.
+* Integrationstester körs mot separat testdatabas
+* Testdata skapas dynamiskt inför varje test
+* Verifierar:
 
-Vid en lyckad överföring loggas transaktionen som SUCCESS via TransactionLogService.  
-Vid fel loggas transaktionen som FAILED i en separat transaktion. Detta görs genom  
-att logFailed-metoden har en egen @Transactional konfiguration (som skapas via en separat spring bean), vilket säkerställer  
-att loggen sparas även om huvudtransaktionen rullas tillbaka. 
+  * saldoändringar
+  * korrekt loggning i `transaction_log`
 
-Efter att felet har loggats kastas exceptionet vidare för att anropare och tester  
-ska få korrekt information om varför överföringen misslyckades.
+Kör tester:
+
+```bash
+mvn test
+```
+
+---
+
+## Teknik
+
+* Java
+* Spring Boot
+* PostgreSQL
+* Maven
+* JUnit
+
+---
+
+## Om projektet
+
+Detta projekt utvecklades som en del av en utbildning inom systemutveckling, med fokus på att bygga realistisk backend-logik och testa transaktionella flöden.
